@@ -1,0 +1,102 @@
+org: stakha
+app: picture-service
+service: picture-service
+frameworkVersion: "2 || 3"
+
+provider:
+  name: aws
+  runtime: nodejs12.x
+  lambdaHashingVersion: "20201221"
+  region: us-west-2
+  environment:
+    user_pool_id: { Ref: UserPool }
+    client_id: { Ref: UserClient }
+    NODE_ENV: ${self:custom.secrets.NODE_ENV}
+    DB_NAME: ${self:custom.secrets.DB_NAME}
+    DB_USER: ${self:custom.secrets.DB_USER}
+    DB_PASSWORD: ${self:custom.secrets.DB_PASSWORD}
+    DB_HOST: ${self:custom.secrets.DB_HOST}
+    DB_PORT: ${self:custom.secrets.DB_PORT}
+  vpc:
+    securityGroupIds:
+      - ${self:custom.secrets.SECURITY_GROUP_ID}
+    subnetIds:
+      - ${self:custom.secrets.SUBNET1_ID}
+      - ${self:custom.secrets.SUBNET2_ID}
+      - ${self:custom.secrets.SUBNET3_ID}
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - cognito-idp:AdminInitiateAuth
+        - cognito-idp:AdminCreateUser
+        - cognito-idp:AdminSetUserPassword
+      Resource: "*"
+
+plugins:
+  - serverless-webpack
+
+custom:
+  secrets: ${file(secrets.json)}
+
+package:
+  individually: true
+
+functions:
+  singup:
+    handler: src/user/signup/handler.signup
+    events:
+      - http:
+          path: /signup
+          method: post
+          cors: true
+
+  login:
+    handler: src/user/login/handler.login
+    events:
+      - http:
+          path: /login
+          method: post
+          cors: true
+
+  privateAPI:
+    handler: src/user/privateAPI/handler.privateAPI
+    events:
+      - http:
+          path: /private
+          method: post
+          cors: true
+          authorizer:
+            name: PrivateAuthorizer
+            type: COGNITO_USER_POOLS
+            arn:
+              Fn::GetAtt:
+                - UserPool
+                - Arn
+            claims:
+              - email
+
+resources:
+  Resources:
+    UserPool:
+      Type: AWS::Cognito::UserPool
+      Properties:
+        UserPoolName: serverless-auth-pool
+        Schema:
+          - Name: email
+            Required: true
+            Mutable: true
+        Policies:
+          PasswordPolicy:
+            MinimumLength: 6
+        AutoVerifiedAttributes: ["email"]
+
+    UserClient:
+      Type: AWS::Cognito::UserPoolClient
+      Properties:
+        ClientName: user-pool-ui
+        GenerateSecret: false
+        UserPoolId: { Ref: UserPool }
+        AccessTokenValidity: 5
+        IdTokenValidity: 5
+        ExplicitAuthFlows:
+          - "ADMIN_NO_SRP_AUTH"
