@@ -17,32 +17,36 @@ provider:
     DB_PASSWORD: ${self:custom.secrets.DB_PASSWORD}
     DB_HOST: ${self:custom.secrets.DB_HOST}
     DB_PORT: ${self:custom.secrets.DB_PORT}
-  vpc:
-    securityGroupIds:
-      - ${self:custom.secrets.SECURITY_GROUP_ID}
-    subnetIds:
-      - ${self:custom.secrets.SUBNET1_ID}
-      - ${self:custom.secrets.SUBNET2_ID}
-      - ${self:custom.secrets.SUBNET3_ID}
+    imageUploadBucket: ${self:custom.imageUploadBucket}
   iamRoleStatements:
     - Effect: Allow
       Action:
         - cognito-idp:AdminInitiateAuth
         - cognito-idp:AdminCreateUser
         - cognito-idp:AdminSetUserPassword
+        - s3:*
       Resource: "*"
 
 plugins:
   - serverless-webpack
 
 custom:
+  webpack:
+    webpackConfig: ./webpack.config.ts
+    includeModules: true
+    packager: npm
   secrets: ${file(secrets.json)}
+  imageUploadBucket: image-upload-bucket-stakha
 
 package:
   individually: true
+  include:
+    - node_modules/**/*
+    - src/**/*
+  excludeDevDependencies: false
 
 functions:
-  singup:
+  signup:
     handler: src/user/signup/handler.signup
     events:
       - http:
@@ -58,8 +62,8 @@ functions:
           method: post
           cors: true
 
-  privateAPI:
-    handler: src/user/privateAPI/handler.privateAPI
+  uploadImage:
+    handler: src/user/uploadImage/handler.uploadImage
     events:
       - http:
           path: /private
@@ -100,3 +104,9 @@ resources:
         IdTokenValidity: 5
         ExplicitAuthFlows:
           - "ADMIN_NO_SRP_AUTH"
+
+    ImageUploadBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:custom.imageUploadBucket}
+        AccessControl: PublicRead

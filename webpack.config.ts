@@ -1,10 +1,14 @@
-const path = require("path");
+import * as path from "path";
 const slsw = require("serverless-webpack");
+import * as webpack from "webpack";
 
-module.exports = {
+const config: webpack.Configuration = {
   mode: slsw.lib.webpack.isLocal ? "development" : "production",
   entry: slsw.lib.entries,
   resolve: {
+    fallback: {
+      "node:fs": require.resolve("fs"),
+    },
     extensions: [".ts", ".tsx", ".js"],
   },
   target: "node",
@@ -21,6 +25,12 @@ module.exports = {
           ],
         ],
       },
+      {
+        test: /\.node$/,
+        loader: "node-loader",
+      },
     ],
   },
 };
+
+module.exports = config;

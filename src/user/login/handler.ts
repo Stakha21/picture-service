@@ -1,6 +1,6 @@
 import type { ValidatedEventAPIGatewayProxyEvent } from "../../libs/apiGateway";
 import { middyfy } from "../../libs/lambda";
-import { validator } from "../../libs/validator";
+import { validateUserData } from "../../libs/validator";
 import AWS from "aws-sdk";
 import schema from "./schema";
 
@@ -10,7 +10,7 @@ const handler: ValidatedEventAPIGatewayProxyEvent<typeof schema> = async (
   event
 ) => {
   try {
-    const valid = validator(event.body);
+    const valid = validateUserData(event.body);
 
     if (!valid) return { error: "Invalid input data" };
 
